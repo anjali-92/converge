@@ -2,6 +2,8 @@
 import importlib
 import os
 import sys
+import subprocess
+import tempfile
 
 
 ns = locals()
@@ -9,7 +11,6 @@ get = ns.get
 
 rc_filename = '.convergerc'
 rc_config = {'APP_MODE': 'dev', 'SETTINGS_DIR': None}
-
 
 def print_and_exit(msg):
     print('ERROR: ' + msg)
@@ -86,10 +87,57 @@ def validate_mode(mode):
     return mode
 
 
+def parse_git_url(git_url):
+    remote_repo_name = branch_name = settings_dir = None
+    if '#' in git_url:
+        remote_repo_name, path = git_url.split('#')
+        if '/' in path:
+            branch_name = path[:path.index('/')]
+            settings_dir = path[path.index('/'):]
+        else:
+            branch_name = path
+    else:
+        branch_name = 'master'
+        remote_repo_name, settings_dir = git_url.split('.git')
+        remote_repo_name = remote_repo_name + '.git'
+        if settings_dir == '':
+            settings_dir = None
+
+    return (remote_repo_name, branch_name, settings_dir)
+
+
+def get_git_settings(git_url):
+    remote_repo_name, branch_name, settings_dir = parse_git_url(git_url)
+    with tempfile.TemporaryDirectory() as temp_dir:
+        subprocess.run(["git", "clone", "-b", branch_name,
+                        remote_repo_name, temp_dir],
+                        stdout=subprocess.PIPE)
+
+        if settings_dir is not None:
+            _directory = temp_dir + settings_dir
+            if os.path.exists(_directory):
+                subprocess.run(["mv", _directory, "."])
+                settings_dir = settings_dir.split('/')[-1]
+            else:
+                raise Exception('%s' %  (settings_dir + " directory not found"))
+        else:
+            subprocess.run(["mkdir", "appsettings"])
+            subprocess.run(["touch", "appsettings/__init__.py"])
+            subprocess.call("mv "+temp_dir+"/*_settings* appsettings",\
+                                                           shell=True)
+            settings_dir = 'appsettings'
+    return settings_dir
+
+
 def main():
     parse_rc()
+    settings_dir_path = rc_config['SETTINGS_DIR']
+    if settings_dir_path and 'https' in settings_dir_path \
+                          and '.git' in settings_dir_path:
+        settings_dir_path = get_git_settings(settings_dir_path)
+
     for name in ('default', rc_config['APP_MODE'], 'site'):
-        import_settings(name, rc_config['SETTINGS_DIR'])
+        import_settings(name, settings_dir_path)
 
 
 def reload():

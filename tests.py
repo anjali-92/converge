@@ -3,6 +3,7 @@ import glob
 import shutil
 
 from converge import settings
+from nose.tools import assert_raises
 
 settings_dir = 'fortest/server1'
 default_config = {'config': 'default'}
@@ -68,3 +69,19 @@ def teardown_module():
         shutil.rmtree(settings_dir)
     if os.path.exists('.convergerc'):
         os.remove('.convergerc')
+
+
+def test_git_urls():
+    base_url = 'https://github.com/anjali-92/Python.git'
+    assert settings.parse_git_url(base_url + '#master/settings') == \
+                                 (base_url, 'master', '/settings')
+
+    assert settings.parse_git_url(base_url + '/settings') == \
+                                 (base_url, 'master', '/settings')
+
+    assert settings.parse_git_url(base_url + '#master') == \
+                                 (base_url, 'master', None)
+
+    assert settings.parse_git_url(base_url) == (base_url, "master", None)
+
+    assert_raises(Exception, settings.get_git_settings, base_url+'#working/settings')
