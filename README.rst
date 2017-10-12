@@ -71,7 +71,7 @@ remote_repo_url[#branch_name][/settings_directory]
 Example
 ~~~~~~~
 
-``SETTINGS_DIR = https://github.com/username/repo_name.git#branch/settings_directory``
+``SETTINGS_DIR = "https://github.com/username/repo_name.git#branch/settings_directory"``
 
 .. note:: Remember to drop __init__.py in settings directory.
 
